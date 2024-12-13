@@ -1,0 +1,194 @@
+---
+title: "My RMarkdown Template"
+author: "Christian Kammerer, Jakob Lindner, Victor Guillo"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## 2. Kernel Methods
+
+We are implementing a kernel method to predict the hourly temperature of a set of coordinates in Sweden, for a given time and date, based on historic temperature records. For this, we are going to use three different kernels which are based on:
+
+1.  the haversine distance ($d_{spatial}$), between the given coordinates and the coordinates of the historic records.
+
+2.  the distance in day time ($d_{time}$) between the given time and the time of the historic record, by also accounting for the cyclical nature of the clock (00:00 and 23:00 are close to each other, not far).
+
+3.  the date distance ($d_{date}$) between the given date and the historic records.
+
+After computing the three different types of distances, we apply the gaussian kernel function with respect to an appropriate smoothing coefficient for the metric.
+
+$$
+K(d_{var,i}) = \exp\left(-\frac{d_{var,i}^2}{2h_{var}^2}\right),  var \in (spatial, time, date)
+$$
+where $i$ denotes the $i$-th data point and and $h_{var}$ is the smoothing coefficient for the variable var.
+
+```{r}
+kernel_function <- function(distances, h) {
+  weights <- lapply(distances, function(distance)
+    exp(-(distance ^ 2 / (2 * h ^ 2))))
+  return(unlist(weights))
+}
+```
+where $d_{var,j}$ is the distance value of the $i$-th data point w.r.t to the variable $var$ and $h_{var}$ the smoothing coefficient for variable $var$. This gives us the kernel value $K(d_{var,i})$ which acts as a weight of data point $i$ w.r.t $var$.
+
+We then have to aggregate the three different $K(d_{var,i})$ values.
+
+For experiment purposes, we do this in two different fashions, by either summing, or multiplying them.<br>
+If summed: 
+$$
+w_i = K(d_{spatial,i}) + K(d_{time,i}) + K(d_{date,i})
+$$
+If multiplied:
+$$
+w_i = K(d_{spatial,i}) * K(d_{time,i}) * K(d_{date,i})
+$$
+```{r, eval=FALSE}
+if (weight_aggregation == "sum") {
+    aggregated_weights <- spatial_weights + date_weights + time_weights
+  } else if (weight_aggregation == "multiply") {
+    aggregated_weights <- spatial_weights * date_weights * time_weights
+  }
+```
+This aggregated weight value determines the weight of the data point in the prediction as shown below.
+$$
+\hat{y} = \frac{\sum_i^n{w_i*y_i}}{\sum_i^n{w_i}}
+$$
+```{r eval=FALSE}
+y_hat = sum(aggregated_weights * y) / sum(aggregated_weights)
+```
+Now that we have established the functionality of the kernel method, we still need to determine appropriate smoothing coefficients. We do this by plotting how the kernel value decays given a set of smoothing coefficients for every variable. *Note:* If the distance value of a given point is equal to the smoothing coefficient, the kernel value for that point will be 0.5.
+
+```{r plots, echo=FALSE, fig.height=3.5}
+plot_kernel_decay <- function(min_value,
+                              max_value,
+                              h_values,
+                              units,
+                              title = "Spatial Distance") {
+  # Define kernel function
+  kernel_function <- function(distance, h) {
+    exp(-(distance ^ 2) / (2 * h ^ 2))
+  }
+  
+  # Generate distances based on the provided range
+  distances <- seq(min_value, max_value, length.out = 500)
+  
+  # Plot setup
+  plot(
+    distances,
+    kernel_function(distances, h_values[1]),
+    type = "l",
+    lwd = 2,
+    col = "blue",
+    ylim = c(0, 1),
+    xlab = paste("Distance in", units),
+    ylab = "Kernel Value",
+    main = title
+  )
+  
+  # Add additional curves for other h values
+  if (length(h_values) > 1) {
+    colors <- rainbow(length(h_values))
+    for (i in seq_along(h_values)) {
+      lines(
+        distances,
+        kernel_function(distances, h_values[i]),
+        col = colors[i],
+        lwd = 2
+      )
+    }
+    legend(
+      "topright",
+      legend = paste0("h = ", h_values),
+      col = colors,
+      lwd = 2
+    )
+  } else {
+    legend(
+      "topright",
+      legend = paste0("h = ", h_values[1]),
+      col = "blue",
+      lwd = 2
+    )
+  }
+}
+
+# Example Usage
+plot_kernel_decay(
+  min_value = 0,
+  max_value = 1500,
+  h_values = c(50, 100, 175, 300, 500, 1000),
+  # Different h values to compare
+  units = "kilometers",
+  title = "Kernel Decay for Spatial Distance"
+)
+
+plot_kernel_decay(
+  min_value = 0,
+  max_value = 12,
+  h_values = c(0.5, 1, 3, 6, 12),
+  # Different h values to compare
+  units = "hours",
+  title = "Kernel Decay for Time Distance"
+)
+
+plot_kernel_decay(
+  min_value = 0,
+  max_value = 1,
+  h_values = c(0.1, 0.25, 0.5, 1, 5),
+  # Different h values to compare
+  units = "years",
+  title = "Kernel Decay for Date Distance"
+)
+  
+```
+<br>
+We ended up using $h_{distance} = 175$ (kilometers) as that is around 10% of the maximum distance possible between two points in Sweden and approximately the straight line distance between Linköping and Stockholm. This means that when we predict the weather in Stockholm, a weather recording in Linköping will have roughly 50% of the weight of a weather recording in Stockholm (if we disregard date and time).
+
+We went with $h_{time} = 3$ (hours), as this somewhat divides a day into quarters (morning, noon, evening, night). 
+
+And with $h_{date} = 1/12$ (years) as this corresponds to a month. This means all data points that are over a year old, will be heavily decayed and have almost no influence in the prediction. However, this was necessary, otherwise we would completely lose the seasonal aspect of the weather. 
+
+It would make more sense to further break down the date variable to account for seasonal variability and global warming, instead of using it the way we are doing.
+
+## Results
+We chose ten random weather stations in Sweden and chose ten random points in time, for which we could find temperature data and compared the real life data to our predictions.
+```{r render-tables, echo=FALSE}
+# Load required library
+library(knitr)
+
+# Load the CSV files
+predictions_kernel_multiply <- read.csv("predictions_kernel_multiply.csv")
+predictions_kernel_sum <- read.csv("predictions_kernel_sum.csv")
+
+
+
+avg_dev_sum <- round(mean(abs(predictions_kernel_sum$Deviation), na.rm = TRUE), 2)
+predictions_kernel_sum <- rbind(
+  predictions_kernel_sum,
+  c("Average absolute deviation", NA, NA, NA, NA, avg_dev_sum)
+)
+## For predictions_kernel_sum
+kable(predictions_kernel_sum, caption = "Predictions with Kernel Sum")
+
+avg_dev_multiply <- round(mean(abs(predictions_kernel_multiply$Deviation), na.rm = TRUE), 2)  
+predictions_kernel_multiply <- rbind(
+  predictions_kernel_multiply,
+  c("Average absolute deviation", NA, NA, NA, NA, avg_dev_multiply)
+)
+
+# Render as tables in RMarkdown
+## For predictions_kernel_multiply
+kable(predictions_kernel_multiply, caption = "Predictions with Kernel Multiply")
+```
+
+From the results above we can draw two conclusions: <br>
+The method which leverages the summation is considerably too "cautious", meaning it's predictions have a very small range in which they fall, which corresponds roughly to the yearly mean temperature in Sweden. 
+
+The method which leverages multiplication performs significantly better, which we can attribute to the fact, that a very low kernel score, for one variable, has a larger effect on the weight of the data point. 
+
+Example: If we want to predict the weather in Linköping for the 1st of January 2015 at 08:00 o'clock and have a data point in Linköping on the 31st of August 2004, the kernel values might look as follows:
+$K_{spatial} = 1$, $K_{date} = 0$, $K_{time} = 1$. The aggregated kernel value / weight of the data point would be $w_{sum} = 2$, $w_{multiply} = 0$. Clearly, this data point would not provide good predictive capabilities for predicting the weather in August, however it would still have a significant weight when using summation, while having 0 weight when using multiplication.
+
+
+
+
