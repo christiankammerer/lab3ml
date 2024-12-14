@@ -1,0 +1,215 @@
+## Assignment 4. Neural Networks
+
+```{r echo=FALSE, include=FALSE}
+library("neuralnet")
+```
+
+### 1.
+The given template was used to complete this task 
+```{r}
+set.seed(1234567890)
+# create data
+Var <- runif(500, 0, 10)
+mydata <- data.frame(Var, Sin=sin(Var))
+# split data
+train <- mydata[1:25,] 
+test <- mydata[26:500,] 
+# Random initialization of the weights in the interval [-1, 1]
+set.seed(1234567890)
+winit <- runif(10,-1,1)
+
+# train data with one hidden layer and 10 hidden units
+nn <- neuralnet(Sin~Var, train, hidden=10, startweights=winit)
+
+# Plot of the training data (black), test data (blue), and predictions (red)
+plot(train, cex=2)
+points(test, col = "blue", cex=1)
+points(test[,1],predict(nn,test), col="red", cex=1)
+title("NN with 10 hidden units")
+legend(x="bottomleft", legend=c("train", "test","prediction"), fill=c("black","blue", "red"))
+```
+
+The overall prediction quality is good. Between roughly Var = 5 and Var = 6.5 it is a little bit off though. This might be explained by the missing training data in this interval.  
+
+### 2. 
+
+The linear activation function, ReLU and softplus are implemented and used for three different neural nets. For ReLU the "ifelse" construct is used, as the max()-function is not differentiable and causes an error in the training.  
+
+```{r}
+h1 <- function(x) x
+h2 <- function(x) ifelse(x > 0, x, 0) 
+h3 <- function(x) log(1+exp(x))
+
+nn_h1 <- neuralnet(Sin~Var, train, hidden=10, act.fct=h1, startweights=winit)
+nn_h2 <- neuralnet(Sin~Var, train, hidden=10, act.fct=h2, startweights=winit)
+nn_h3 <- neuralnet(Sin~Var, train, hidden=10, act.fct=h3, startweights=winit)
+```
+
+```{r echo=FALSE}
+# Plot of the training data (black), test data (blue), and predictions (red)
+plot(train, cex=2)
+points(test, col = "blue", cex=1)
+points(test[,1],predict(nn_h1,test), col="red", cex=1)
+title("Linear activation function")
+legend(x="bottomleft", legend=c("train", "test","prediction"), fill=c("black","blue", "red"))
+# Plot of the training data (black), test data (blue), and predictions (red)
+plot(train, cex=2)
+points(test, col = "blue", cex=1)
+points(test[,1],predict(nn_h2,test), col="red", cex=1)
+title("ReLU")
+legend(x="bottomleft", legend=c("train", "test","prediction"), fill=c("black","blue", "red"))
+
+# Plot of the training data (black), test data (blue), and predictions (red)
+plot(train, cex=2)
+points(test, col = "blue", cex=1)
+points(test[,1],predict(nn_h3,test), col="red", cex=1)
+title("Softplus")
+legend(x="bottomleft", legend=c("train", "test","prediction"), fill=c("black","blue", "red"))
+
+```
+
+For the linear activation function the underlying pattern is not learned at all. This is not surprising as it does not add any non-linearity.  
+
+Using ReLU as activation function results in a slightly better prediction. But from Var=4 on it is completly off.  
+
+The results of the neural net with softplus are similar to the net with sigmoid. But the interval, where the predictions are a bit further from the actual values, is a bit bigger for softplus, roughly from Var = 5 to Var = 8.5.  
+
+### 3. 
+
+```{r}
+# create new data
+set.seed(1234567890)
+Var <- runif(500, 0, 50)
+mydata_3 <- data.frame(Var, Sin=sin(Var))
+
+```
+  
+  
+```{r echo=FALSE}
+# Plot of the actual data (blue) and the prediction
+
+plot(mydata_3[,1],predict(nn,newdata=mydata_3),col="red",cex=0.5, xlab="Var", ylab="Sin")
+points(mydata_3,cex=1, col="blue")
+title("Prediction on bigger interval")
+legend(x="bottomleft", legend=c("true","prediction"), fill=c("blue", "red"))
+```
+In the interval, that the net was trained for, the prediction is very good. But for Var > 10 the prediction converges towards -3.97.
+
+```{r echo=FALSE}
+cat("Minimum value of prediction:", min(predict(nn,mydata_3)))
+```
+
+
+### 4. 
+As there is no training data for values bigger than 10, the prediction fails for these. 
+But why it converges to this exact value is not clear.
+
+### 5. 
+The same procedure as for the previous tasks is used here as well. Only the target and feature variables are switched to predict x from sin(x).
+```{r}
+set.seed(1234567890)
+Var <- runif(500,0,10)
+mydata_5 <- data.frame(Var, Sin=sin(Var))
+
+nn5 <- neuralnet(Var~Sin, mydata_5, hidden=10, threshold=0.1, startweights=winit)
+
+```
+  
+  
+```{r echo=FALSE}
+plot(mydata_5$Sin,predict(nn5,newdata=mydata_5),col="red",ylab="Var", xlab="Sin", ylim=c(0,10))
+points(mydata_5$Sin,mydata_5$Var)
+title("Predict x from sin(x)")
+legend(x="bottomleft", legend=c("train","prediction"), fill=c("blue", "red"))
+```
+  
+The results are very bad. The predictions are not close to the actual value at all, which makes sense as many x values result in the same sin(x).
+
+
+# Appendix
+
+```{r echo=FALSE, include=FALSE}
+library("neuralnet")
+
+### 1.
+
+set.seed(1234567890)
+# create data
+Var <- runif(500, 0, 10)
+mydata <- data.frame(Var, Sin=sin(Var))
+# split data
+train <- mydata[1:25,] 
+test <- mydata[26:500,] 
+# Random initialization of the weights in the interval [-1, 1]
+set.seed(1234567890)
+winit <- runif(10,-1,1)
+
+# train data with one hidden layer and 10 hidden units
+nn <- neuralnet(Sin~Var, train, hidden=10, startweights=winit)
+
+# Plot of the training data (black), test data (blue), and predictions (red)
+plot(train, cex=2)
+points(test, col = "blue", cex=1)
+points(test[,1],predict(nn,test), col="red", cex=1)
+title("NN with 10 hidden units")
+legend(x="bottomleft", legend=c("train", "test","prediction"), fill=c("black","blue", "red"))
+
+
+### 2. 
+
+h1 <- function(x) x
+h2 <- function(x) ifelse(x > 0, x, 0) 
+h3 <- function(x) log(1+exp(x))
+
+nn_h1 <- neuralnet(Sin~Var, train, hidden=10, act.fct=h1, startweights=winit)
+nn_h2 <- neuralnet(Sin~Var, train, hidden=10, act.fct=h2, startweights=winit)
+nn_h3 <- neuralnet(Sin~Var, train, hidden=10, act.fct=h3, startweights=winit)
+
+# Plot of the training data (black), test data (blue), and predictions (red)
+plot(train, cex=2)
+points(test, col = "blue", cex=1)
+points(test[,1],predict(nn_h1,test), col="red", cex=1)
+title("Linear activation function")
+legend(x="bottomleft", legend=c("train", "test","prediction"), fill=c("black","blue", "red"))
+# Plot of the training data (black), test data (blue), and predictions (red)
+plot(train, cex=2)
+points(test, col = "blue", cex=1)
+points(test[,1],predict(nn_h2,test), col="red", cex=1)
+title("ReLU")
+legend(x="bottomleft", legend=c("train", "test","prediction"), fill=c("black","blue", "red"))
+
+# Plot of the training data (black), test data (blue), and predictions (red)
+plot(train, cex=2)
+points(test, col = "blue", cex=1)
+points(test[,1],predict(nn_h3,test), col="red", cex=1)
+title("Softplus")
+legend(x="bottomleft", legend=c("train", "test","prediction"), fill=c("black","blue", "red"))
+
+### 3. 
+
+# create new data
+set.seed(1234567890)
+Var <- runif(500, 0, 50)
+mydata_3 <- data.frame(Var, Sin=sin(Var))
+
+# Plot of the actual data (blue) and the prediction
+
+plot(mydata_3[,1],predict(nn,newdata=mydata_3),col="red",cex=0.5, xlab="Var", ylab="Sin")
+points(mydata_3,cex=1, col="blue")
+title("Prediction on bigger interval")
+legend(x="bottomleft", legend=c("true","prediction"), fill=c("blue", "red"))
+
+cat("Minimum value of prediction:", min(predict(nn,mydata_3)))
+
+### 5. 
+set.seed(1234567890)
+Var <- runif(500,0,10)
+mydata_5 <- data.frame(Var, Sin=sin(Var))
+
+nn5 <- neuralnet(Var~Sin, mydata_5, hidden=10, threshold=0.1, startweights=winit)
+
+plot(mydata_5$Sin,predict(nn5,newdata=mydata_5),col="red",ylab="Var", xlab="Sin", ylim=c(0,10))
+points(mydata_5$Sin,mydata_5$Var)
+title("Predict x from sin(x)")
+legend(x="bottomleft", legend=c("train","prediction"), fill=c("blue", "red"))
+```
