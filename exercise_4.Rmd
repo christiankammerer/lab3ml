@@ -218,5 +218,5 @@ nn5 <- neuralnet(Var~Sin, mydata_5, hidden=10, threshold=0.1, startweights=winit
 plot(mydata_5$Sin,predict(nn5,newdata=mydata_5),col="red",ylab="Var", xlab="Sin", ylim=c(0,10))
 points(mydata_5$Sin,mydata_5$Var)
 title("Predict x from sin(x)")
-legend(x="bottomleft", legend=c("train","prediction"), fill=c("blue", "red"))
+legend(x="bottomleft", legend=c("test","prediction"), fill=c("black", "red"))
 ```

@@ -78,7 +78,7 @@ mean_squared_error(mydata_3[,1],predict(nn,newdata=mydata_3))
 # 4 #
 nn$weights
 nn$weights[[1]][[1]][2,]
-sum(nn$weights[[1]][[2]])
+sum(nn$weights[[1]][[2]]) + sum(nn$weights[[1]][[1]])
 plot(nn)
 # The convergence probably happens because of the lack of training data for Var > 10
 # TODO: Why towards -9.5?
