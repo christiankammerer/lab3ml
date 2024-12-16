@@ -5,7 +5,7 @@ library("neuralnet")
 ```
 
 ### 1.
-The given template was used to complete this task 
+We used the given code template to create the dataset containing 500 points in the interval [0,10], to split it in training and test data and to train the neural network with 10 hidden units. For the start weights we sampled ten random values between -1 and 1.
 ```{r}
 set.seed(1234567890)
 # create data
@@ -29,11 +29,11 @@ title("NN with 10 hidden units")
 legend(x="bottomleft", legend=c("train", "test","prediction"), fill=c("black","blue", "red"))
 ```
 
-The overall prediction quality is good. Between roughly Var = 5 and Var = 6.5 it is a little bit off though. This might be explained by the missing training data in this interval.  
+The overall prediction quality is good. Between approximately Var = 5 and Var = 6.5 it is a little bit off though. This might be explained by the missing training data in this interval.  
 
 ### 2. 
 
-The linear activation function, ReLU and softplus are implemented and used for three different neural nets. For ReLU the "ifelse" construct is used, as the max()-function is not differentiable and causes an error in the training.  
+The linear activation function, ReLU and softplus are implemented and used for three different neural nets. For ReLU we used the "ifelse" construct , as the max()-function is not differentiable and causes an error in the training.  
 
 ```{r}
 h1 <- function(x) x
@@ -70,12 +70,12 @@ legend(x="bottomleft", legend=c("train", "test","prediction"), fill=c("black","b
 
 For the linear activation function the underlying pattern is not learned at all. This is not surprising as it does not add any non-linearity.  
 
-Using ReLU as activation function results in a slightly better prediction. But from Var=4 on it is completly off.  
+Using ReLU as activation function results in a slightly better prediction. But from Var=4 on it is completely off.  
 
-The results of the neural net with softplus are similar to the net with sigmoid. But the interval, where the predictions are a bit further from the actual values, is a bit bigger for softplus, roughly from Var = 5 to Var = 8.5.  
+The results of the neural net with softplus are similar to the net with sigmoid. But the interval where the predictions are a bit further from the actual values is a bit bigger for softplus, roughly from Var = 5 to Var = 8.5.  
 
 ### 3. 
-
+For this task we need a new dataset with 500 points, but in the range from 0 to 50. 
 ```{r}
 # create new data
 set.seed(1234567890)
@@ -83,7 +83,8 @@ Var <- runif(500, 0, 50)
 mydata_3 <- data.frame(Var, Sin=sin(Var))
 
 ```
-  
+
+Then the neural network from task 1 is used to predict the sinus on the new data.   
   
 ```{r echo=FALSE}
 # Plot of the actual data (blue) and the prediction
@@ -102,7 +103,13 @@ cat("Minimum value of prediction:", min(predict(nn,mydata_3)))
 
 ### 4. 
 As there is no training data for values bigger than 10, the prediction fails for these. 
-But why it converges to this exact value is not clear.
+But why it converges to this exact value is not clear. We cannot find any indicator in the weights: 
+
+```{r echo=FALSE}
+cat("Weights for input to hidden layer:", round(nn$weights[[1]][[1]][1,],digits=4))
+cat("Weights for bias to hidden layer:",round(nn$weights[[1]][[1]][2,],digits=4))
+cat("Weights for output layer:", round(nn$weights[[1]][[2]],digits=4))
+```
 
 ### 5. 
 The same procedure as for the previous tasks is used here as well. Only the target and feature variables are switched to predict x from sin(x).
@@ -128,7 +135,7 @@ The results are very bad. The predictions are not close to the actual value at a
 
 # Appendix
 
-```{r echo=FALSE, include=FALSE}
+```{r eval=FALSE}
 library("neuralnet")
 
 ### 1.
