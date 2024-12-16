@@ -94,6 +94,7 @@ points(mydata_3,cex=1, col="blue")
 title("Prediction on bigger interval")
 legend(x="bottomleft", legend=c("true","prediction"), fill=c("blue", "red"))
 ```
+  
 In the interval, that the net was trained for, the prediction is very good. But for Var > 10 the prediction converges towards -3.97.
 
 ```{r echo=FALSE}
@@ -113,6 +114,7 @@ cat("Weights for output layer:", round(nn$weights[[1]][[2]],digits=4))
 
 ### 5. 
 The same procedure as for the previous tasks is used here as well. Only the target and feature variables are switched to predict x from sin(x).
+  
 ```{r}
 set.seed(1234567890)
 Var <- runif(500,0,10)
