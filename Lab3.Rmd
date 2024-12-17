@@ -1,0 +1,303 @@
+---
+title: "Lab3"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+# Computer lab 3
+
+Group A11 - Victor Guillo, Christian Kammerer, Jakob Lindner
+
+
+# 1 THEORY
+
+## 1 What is the kernel trick?
+
+The kernel trick is a technique in machine learning that allows the use of non-linear models without explicitly transforming the input data into a higher-dimensional space. Instead of directly computing the transformation \( \phi(x) \), the kernel function \( \kappa(x, x') \) efficiently computes the inner product in the transformed space. This avoids the computational burden of handling the transformed features while enabling non-linear decision boundaries, such as in **Support Vector Machines (SVMs)**. The kernel trick works because models rely only on inner products, which can be replaced by a suitable kernel function. A common example is the Radial Basis Function (RBF) kernel.  
+Page 194
+
+## 2 In the literature, it is common to see a formulation of SVMs that makes use of a hyperparameter C. What is the purpose of this hyperparameter?
+
+The hyperparameter C serves as a regularization parameter in the SVM formulation. It controls the trade-off between achieving a low error on the training data and minimizing the norm of the weights. A larger C gives more weight to achieving a low training error, which can lead to a smaller margin but less generalization. A smaller C emphasizes a larger margin at the cost of allowing some misclassifications on the training data.
+Page 211
+
+## 3 In neural networks, what do we mean by mini-batch and epoch?
+A mini-batch is a small, random subset of the training data used to compute the gradient and update the model parameters during one iteration of stochastic gradient descent. It balances computational efficiency and accuracy.
+An epoch is one complete pass through the entire training dataset. In the mini-batch approach, an epoch consists of multiple iterations, each processing a mini-batch.
+Pages 124-125
+
+
+# 3 SUPPORT VECTOR MACHINES
+
+
+```{r, echo=FALSE}
+library(kernlab)
+set.seed(1234567890)
+
+data(spam)
+foo <- sample(nrow(spam))
+spam <- spam[foo,]
+tr <- spam[1:3000, ]
+va <- spam[3001:3800, ]
+trva <- spam[1:3800, ]
+te <- spam[3801:4601, ] 
+
+by <- 0.3
+err_va <- NULL
+for(i in seq(by,5,by)){
+  filter <- ksvm(type~.,data=tr,kernel="rbfdot",kpar=list(sigma=0.05),C=i,scaled=FALSE)
+  mailtype <- predict(filter,va[,-58])
+  t <- table(mailtype,va[,58])
+  err_va <-c(err_va,(t[1,2]+t[2,1])/sum(t))
+}
+
+```
+
+
+```{r}
+# Calculate the best C
+best_C <- which.min(err_va) * by
+cat("The best C is:", best_C)
+```
+
+For the next part we keep the best C for all filters.
+
+
+```{r, echo=FALSE}
+filter0 <- ksvm(type~.,data=tr,kernel="rbfdot",kpar=list(sigma=0.05),C=which.min(err_va)*by,scaled=FALSE)
+mailtype <- predict(filter0,va[,-58])
+t <- table(mailtype,va[,58])
+err0 <- (t[1,2]+t[2,1])/sum(t)
+cat("err0 is:", err0, "\n")
+
+filter1 <- ksvm(type~.,data=tr,kernel="rbfdot",kpar=list(sigma=0.05),C=which.min(err_va)*by,scaled=FALSE)
+mailtype <- predict(filter1,te[,-58])
+t <- table(mailtype,te[,58])
+err1 <- (t[1,2]+t[2,1])/sum(t)
+cat("err1 is:", err1, "\n")
+
+filter2 <- ksvm(type~.,data=trva,kernel="rbfdot",kpar=list(sigma=0.05),C=which.min(err_va)*by,scaled=FALSE)
+mailtype <- predict(filter2,te[,-58])
+t <- table(mailtype,te[,58])
+err2 <- (t[1,2]+t[2,1])/sum(t)
+cat("err2 is is:", err2, "\n")
+
+filter3 <- ksvm(type~.,data=spam,kernel="rbfdot",kpar=list(sigma=0.05),C=which.min(err_va)*by,scaled=FALSE)
+mailtype <- predict(filter3,te[,-58])
+t <- table(mailtype,te[,58])
+err3 <- (t[1,2]+t[2,1])/sum(t)
+cat("err3 is is:", err3, "\n")
+```
+
+Filter 0 :
+Verify how well the SVM model with the best C performs on the validation set.
+err0 helps validate the tuning of C.
+
+Filter 1 :
+Measure the generalization error of the model on unseen data (test set).
+err1 shows into how well the model performs outside the validation set.
+
+Filter 2 :
+By using more data (training + validation), the model has a potentially stronger fit.
+err2 tests whether this improved training size leads to better generalization on the test set.
+
+Filter 3 :
+Train the final model using all available data, maximizing the information for training.
+Evaluate on the test set to observe the generalization error.
+
+# Questions
+
+# 1. Which filter do we return to the user ? filter0, filter1, filter2 or filter3? Why?
+The filter returned to the user is filter3 because it is trained on the entire dataset, including training, validation, and test portions, allowing it to utilize all available information and achieve the lowest error. In the context of this exercise, the goal is to perform SVM model selection using only the given spam dataset, and no truly unseen data is expected. While training on all data may risk overfitting in other scenarios, it is acceptable here as the focus is solely on optimizing performance within the provided dataset.
+
+
+# 2. What is the estimate of the generalization error of the filter returned to the user? err0, err1, err2 or err3? Why?
+The estimate of the generalization error of the filter returned to the user is err3, err3 = 0.008739076.
+Since this filter is trained on the most data and uses the best C from cross-validation, it is expected to generalize better than Filter 0, Filter 1, or Filter 2.
+
+err0: Measures error on the validation set (va), which was only used to tune C. It does not estimate the model's performance on unseen data.
+err1: Measures error on the test set (te), but the model is trained only on 3000 training samples, not the full dataset.
+err2: Measures error on the test set (te), but the model is trained on 3800 samples (trva), which is larger than filter1, but still smaller than the entire dataset.
+err3: Measures error on the test set (te), and since filter3 is trained on all 4601 samples, this is the best and most reliable model for generalization.
+
+err0 = 0.175, err1 = 0.1610487, err2 = 0.1573034, err3 = 0.008739076.
+The err3 value is much smaller than the other errors, but this is due to the fact that it is trained on all the data, including the test set (te). While this gives it a lower error, it might not reflect "true" generalization error, but it is still the error reported for Filter 3, which is the model returned to the user.
+
+# 3
+
+
+
+# SVM Decision Function
+
+The SVM decision function is defined as:
+
+\[
+f(x) = \sum_{i=1}^{N} \alpha_i K(x_i, x) + b
+\]
+
+Where:
+
+- \( \alpha_i \) are the coefficients for the support vectors,
+- \( K(x_i, x) \) is the kernel function,
+- \( b \) is the intercept term.
+
+The **RBF kernel** is given by:
+
+\[
+K(x, x') = \exp\left(-\frac{\|x - x'\|^2}{2\sigma^2}\right)
+\]
+
+Here:
+- \( \|x - x'\|^2 \) is the squared Euclidean distance between two points \( x \) and \( x' \),
+- \( \sigma \) is the kernel width parameter
+
+
+
+
+```{r}
+# Extract support vector indices, coefficients, and intercept
+sv <- alphaindex(filter3)[[1]] # Support vector indices
+co <- coef(filter3)[[1]]       # Coefficients for the support vectors
+inte <- -b(filter3)            # Negative intercept
+
+# Initialize a vector to store the decision values
+k <- NULL
+
+# Compute decision values for the first 10 points
+for (i in 1:10) {
+  k2 <- NULL # Initialize contributions for the current data point
+  for (j in 1:length(sv)) {
+    # Compute the RBF kernel value between point i and support vector j
+    diff <- as.numeric(spam[i, -58] - spam[sv[j], -58]) # Difference between features
+    rbf_kernel <- exp(-sum(diff^2) / (2 * 0.05^2))      # RBF kernel computation
+    k2 <- c(k2, co[j] * rbf_kernel)                    # Contribution from support vector j
+  }
+  # Compute final decision value for data point i
+  k <- c(k, sum(k2) + inte)
+}
+
+# Output the computed decision values
+k
+
+```
+
+```{r}
+# Compare the computed decision values with predict()
+predict(filter3, spam[1:10, -58], type = "decision")
+```
+
+Positive value: The point is classified as belonging to the positive class.
+Negative value: The point is classified as belonging to the negative class.
+
+
+The manually computed decision values are close but not identical to the predict() results due to:
+Floating-point precision differences.
+Implementation-specific optimizations in kernlab::ksvm.
+
+The values from predict() have a higher magnitude compared to the manually computed values.
+This suggests that predict() incorporates additional numerical optimizations or higher precision, leading to more confident predictions.
+
+The manually computed values demonstrate the underlying mechanics of how SVM predictions are made.
+The classification results are consistent with the predictions from predict(), validating the correctness of your implementation.
+
+
+# Appendix
+
+
+
+## Assignment 3
+
+
+```{r}
+library(kernlab)
+set.seed(1234567890)
+
+data(spam)
+foo <- sample(nrow(spam))
+spam <- spam[foo,]
+tr <- spam[1:3000, ]
+va <- spam[3001:3800, ]
+trva <- spam[1:3800, ]
+te <- spam[3801:4601, ] 
+
+by <- 0.3
+err_va <- NULL
+for(i in seq(by,5,by)){
+  filter <- ksvm(type~.,data=tr,kernel="rbfdot",kpar=list(sigma=0.05),C=i,scaled=FALSE)
+  mailtype <- predict(filter,va[,-58])
+  t <- table(mailtype,va[,58])
+  err_va <-c(err_va,(t[1,2]+t[2,1])/sum(t))
+}
+
+```
+
+```{r}
+best_C <- which.min(err_va) * by
+best_C
+```
+
+```{r}
+filter0 <- ksvm(type~.,data=tr,kernel="rbfdot",kpar=list(sigma=0.05),C=which.min(err_va)*by,scaled=FALSE)
+mailtype <- predict(filter0,va[,-58])
+t <- table(mailtype,va[,58])
+err0 <- (t[1,2]+t[2,1])/sum(t)
+cat("err0 is:", err0, "\n")
+
+filter1 <- ksvm(type~.,data=tr,kernel="rbfdot",kpar=list(sigma=0.05),C=which.min(err_va)*by,scaled=FALSE)
+mailtype <- predict(filter1,te[,-58])
+t <- table(mailtype,te[,58])
+err1 <- (t[1,2]+t[2,1])/sum(t)
+cat("err1 is:", err1, "\n")
+
+filter2 <- ksvm(type~.,data=trva,kernel="rbfdot",kpar=list(sigma=0.05),C=which.min(err_va)*by,scaled=FALSE)
+mailtype <- predict(filter2,te[,-58])
+t <- table(mailtype,te[,58])
+err2 <- (t[1,2]+t[2,1])/sum(t)
+cat("err2 is is:", err2, "\n")
+
+filter3 <- ksvm(type~.,data=spam,kernel="rbfdot",kpar=list(sigma=0.05),C=which.min(err_va)*by,scaled=FALSE)
+mailtype <- predict(filter3,te[,-58])
+t <- table(mailtype,te[,58])
+err3 <- (t[1,2]+t[2,1])/sum(t)
+cat("err3 is is:", err3, "\n")
+```
+
+
+
+# 3
+
+```{r}
+# Extract support vector indices, coefficients, and intercept
+sv <- alphaindex(filter3)[[1]] # Support vector indices
+co <- coef(filter3)[[1]]       # Coefficients for the support vectors
+inte <- -b(filter3)            # Negative intercept
+
+# Initialize a vector to store the decision values
+k <- NULL
+
+# Compute decision values for the first 10 points
+for (i in 1:10) {
+  k2 <- NULL # Initialize contributions for the current data point
+  for (j in 1:length(sv)) {
+    # Compute the RBF kernel value between point i and support vector j
+    diff <- as.numeric(spam[i, -58] - spam[sv[j], -58]) # Difference between features
+    rbf_kernel <- exp(-sum(diff^2) / (2 * 0.05^2))      # RBF kernel computation
+    k2 <- c(k2, co[j] * rbf_kernel)                    # Contribution from support vector j
+  }
+  # Compute final decision value for data point i
+  k <- c(k, sum(k2) + inte)
+}
+
+# Output the computed decision values
+k
+
+```
+
+```{r}
+# Compare the computed decision values with predict()
+predict(filter3, spam[1:10, -58], type = "decision")
+```
+
+
